@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQTT Bağlantısı</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .topic-box {
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin: 10px;
+            width: 300px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="topic-box" id="room-temperature">
+            <h2>Oda Sıcaklığı</h2>
+            <p id="temperature">Bağlanıyor...</p>
+        </div>
+        <div class="topic-box" id="outside-temperature">
+            <h2>Dış Sıcaklık</h2>
+            <p id="outsideTemp">Bağlanıyor...</p>
+        </div>
+        <div class="topic-box" id="outside-humidity">
+            <h2>Dış Nem</h2>
+            <p id="outsideHum">Bağlanıyor...</p>
+        </div>
+    </div>
+
+    <script>
+        // MQTT broker adresi
+        const brokerUrl = 'ws://broker.emqx.io:8083/mqtt';
+
+        // MQTT istemcisi oluştur
+        const client = mqtt.connect(brokerUrl);
+
+        // Abone olunacak konular
+        const topics = ['odaSicaklik', 'disSicaklik', 'disNem'];
+
+        // Bağlantı kurulduğunda çalışacak fonksiyon
+        client.on('connect', function () {
+            console.log('MQTT Broker\'a bağlanıldı');
+            // Konulara abone ol
+            client.subscribe(topics, function (err) {
+                if (!err) {
+                    console.log('Konulara abone olundu:', topics.join(', '));
+                }
+            });
+        });
+
+        // Mesaj alındığında çalışacak fonksiyon
+        client.on('message', function (topic, message) {
+            let formattedMessage = message.toString();
+
+            // Mesajı formatlama: İlk iki rakamdan sonra nokta ekle
+            if (formattedMessage.length > 2) {
+                formattedMessage = formattedMessage.slice(0, 2) + '.' + formattedMessage.slice(2);
+            }
+
+            if (topic === 'odaSicaklik') {
+                document.getElementById('temperature').innerText = `Oda Sıcaklığı: ${formattedMessage} °C`;
+            } else if (topic === 'disSicaklik') {
+                document.getElementById('outsideTemp').innerText = `Dış Sıcaklık: ${formattedMessage} °C`;
+            } else if (topic === 'disNem') {
+                document.getElementById('outsideHum').innerText = `Dış Nem: ${formattedMessage} %`;
+            }
+        });
+
+        // Bağlantı hatası durumunda çalışacak fonksiyon
+        client.on('error', function (error) {
+            console.error('Bağlantı hatası:', error);
+        });
+    </script>
+</body>
+</html>
