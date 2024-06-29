@@ -24,7 +24,7 @@
     <div class="container">
         <div class="topic-box" id="room-temperature">
             <h2>Oda Sıcaklığı</h2>
-            <p id="temperature">Bağlanıyorxxxxxxxxxxxxx...</p>
+            <p id="temperature">Bağlanıyorvvvvvv...</p>
         </div>
         <div class="topic-box" id="outside-temperature">
             <h2>Dış Sıcaklık</h2>
@@ -38,7 +38,7 @@
 
     <script>
         // MQTT broker adresi
-        const brokerUrl = 'mqtt://broker.emqx.io:1883';
+        const brokerUrl = 'mqtts://broker.emqx.io:8883';
 
         // MQTT istemcisi oluştur
         const client = mqtt.connect(brokerUrl);
