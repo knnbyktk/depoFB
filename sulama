@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQTT Bağlantısı</title>
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+        body {
+        font-family: Arial, sans-serif;
+        color: hsl(133, 91%, 45%); /* Metin rengi */
+        background-color: #1b1515; /* Arka plan rengi beyaz yapma */
+        text-align: center;
+       
+
+
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, auto);
+            gap: 10px; /* Kutular arası boşluk */
+            align-items: center;
+            justify-items: center;
+            padding: 20px;
+            background-color: #1b1515; /* Kutu arka plan rengi*/
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Hafif gölgelendirme */
+        }
+
+        .button-container {
+        display: flex;
+        flex-direction: row;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+
+
+    .button {
+        padding: 10px 20px;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+    .button:hover {
+        background-color: #4CAF50;
+        color: white;
+    }
+    .reset-button{
+        background-color: #FF6347;
+    }
+    .baglanti-button {
+        background-color: #1E90FF;
+    }
+    .download-button{
+        background-color: #FFD700;
+    }
+    .message-display {
+        width: 300px;
+        height: 100px;
+        padding: 10px;
+      background-color: black;
+      color: white;
+    }
+
+        
+        .slider-box, .topic-box {
+            border: 1px solid #ccc;
+            padding: 20px;
+            width: 300px;
+          border: none;
+            text-align: center;
+         
+           color: hsl(133, 91%, 45%); /* Metin rengi */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .slider-box h2, .topic-box h2 {
+            margin-bottom: 15px;
+        }
+        .slider-box input[type="range"] {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .slider-box p {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .gauge-box {
+            display: flex;
+            justify-content: center; /* Yatay merkez */
+            align-items: center; /* Dikey merkez */
+            width: 100%;         
+
+        }
+        
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Sol Üst -->
+        <div class="slider-box" id="onBahce2">
+            <h2>Ön Bahçe 2 Süre</h2>
+            <input type="range" id="sliderOnBahce2" min="0" max="240" value="0">
+            <p id="onBahce2Value">0:00 sn.</p>
+            <div id="gaugeOnBahce2"></div>
+        </div>
+        <!-- Sağ Üst -->
+        <div class="slider-box" id="onBahce1">
+            <h2>Ön Bahçe 1 Süre</h2>
+            <input type="range" id="sliderOnBahce1" min="0" max="240" value="0">
+            <p id="onBahce1Value">0:00 sn.</p>
+            <div id="gaugeOnBahce1"></div>
+        </div>
+        <!-- Sol Alt -->
+        <div class="slider-box" id="arkaBahce2">
+            <h2>Arka Bahçe 2 Süre</h2>
+            <input type="range" id="sliderArkaBahce2" min="0" max="240" value="0">
+            <p id="arkaBahce2Value">0:00 sn.</p>
+            <div id="gaugeArkaBahce2"></div>
+        </div>
+        <!-- Sağ Alt -->
+        <div class="slider-box" id="arkaBahce1">
+            <h2>Arka Bahçe 1 Süre</h2>
+            <input type="range" id="sliderArkaBahce1" min="0" max="240" value="0">
+            <p id="arkaBahce1Value">0:00 sn.</p>
+            <div id="gaugeArkaBahce1"></div>
+        </div>
+        <!-- Reset ve İndirme Butonları -->
+        <div class="button-container">
+            <button class="button reset-button" onclick="resetValues()">Sulamayı Durdur</button>
+            <button class="button download-button" onclick="downloadMessages()">MQTT Mesajlarını İndir</button>
+            <button class="button baglanti-button" onclick="baglanti()">MQTT Bağlantısını Yönet</button> </div>
+      <div></div>
+
+         
+    <!-- MQTT Verilerini Gösterme Alanları -->
+    
+        <div class="topic-box" id="room-temperature">
+            <h2>Oda Sıcaklığı</h2>
+            <p id="temperature">Bağlanıyor...</p>
+        </div>
+        <div class="topic-box" id="outside-temperature">
+            <h2>Dış Sıcaklık</h2>
+            <p id="outsideTemp">Bağlanıyor...</p>
+        </div>
+        <div class="topic-box" id="outside-humidity">
+            <h2>Dış Nem</h2>
+            <p id="outsideHum">Bağlanıyor...</p>
+        </div>      
+         <div>
+        <textarea id="messageDisplay" class="message-display" readonly></textarea>
+        </div>
+      
+      
+    
+      
+      
+      
+      
+      
+      
+      
+      
+     
+  
+
+    <script>
+        
+        // MQTT broker adresi
+        const brokerUrl = 'wss://broker.emqx.io:8084/mqtt';
+        
+        document.getElementById("sliderArkaBahce1").disabled = true;
+        document.getElementById("sliderArkaBahce2").disabled = true;
+        document.getElementById("sliderOnBahce1").disabled = true;
+        document.getElementById("sliderOnBahce2").disabled = true;
+
+        // MQTT istemcisi oluştur
+        const client = mqtt.connect(brokerUrl);
+
+        // Abone olunacak konular
+        const topics = ['odaSicaklik', 'disSicaklik', 'disNem', 'onBahce1_sure', 'onBahce2_sure', 'arkaBahce1_sure', 'arkaBahce2_sure',
+        'onBahce1_sure_kalanZaman', 'onBahce2_sure_kalanZaman', 'arkaBahce1_sure_kalanZaman', 'arkaBahce2_sure_kalanZaman'];
+
+
+
+        // Bağlantı kurulduğunda çalışacak fonksiyon
+        client.on('connect', function () {
+            console.log('MQTT Broker\'a bağlanıldı');
+            // Konulara abone ol
+            client.subscribe(topics, function (err) {
+                if (!err) {
+                    console.log('Konulara abone olundu:', topics.join(', '));
+                }
+            });
+        });
+
+
+        // Mesaj alındığında çalışacak fonksiyon
+        client.on('message', function (topic, message) {
+            let formattedMessage = message.toString();
+
+            // İlk iki rakamdan sonra "." ekle
+            if (['odaSicaklik', 'disSicaklik', 'disNem'].includes(topic)) {
+                formattedMessage = formattedMessage.slice(0, 2) + ':' + formattedMessage.slice(2);
+            }
+
+            if (topic === 'odaSicaklik') {
+                document.getElementById('temperature').innerText = `Oda Sıcaklığı: ${formattedMessage} °C`;
+            } else if (topic === 'disSicaklik') {
+                document.getElementById('outsideTemp').innerText = `Dış Sıcaklık: ${formattedMessage} °C`;
+            } else if (topic === 'disNem') {
+                document.getElementById('outsideHum').innerText = `Dış Nem: ${formattedMessage} %`;
+            } else if (topic === 'onBahce1_sure') {
+                updateGauge('gaugeOnBahce1', formattedMessage);
+            } else if (topic === 'onBahce2_sure') {
+                updateGauge('gaugeOnBahce2', formattedMessage);
+            } else if (topic === 'arkaBahce1_sure') {
+                updateGauge('gaugeArkaBahce1', formattedMessage);
+            } else if (topic === 'arkaBahce2_sure') {
+                updateGauge('gaugeArkaBahce2', formattedMessage);
+            }
+
+            // LocalStorage'a kaydet
+            localStorage.setItem(topic, formattedMessage);
+        });
+
+        // Bağlantı hatası durumunda çalışacak fonksiyon
+        client.on('error', function (error) {
+            console.error('Bağlantı hatası:', error);
+        });
+
+
+        // Sliderların değerlerini güncelleyen ve MQTT mesajı gönderen fonksiyon
+        function setupSlider(sliderId, valueId, topic) {
+            const slider = document.getElementById(sliderId);
+            const valueDisplay = document.getElementById(valueId);
+
+            slider.addEventListener('input', function () {
+                const value = slider.value;
+                const formattedValue = formatSliderValue(value);
+                valueDisplay.innerText = formattedValue;
+
+                // MQTT mesajı gönder
+                client.publish(topic, value);
+            });
+        }
+
+        // Sliderları kur
+        setupSlider('sliderOnBahce1', 'onBahce1Value', 'onBahce1_sure');
+        setupSlider('sliderOnBahce2', 'onBahce2Value', 'onBahce2_sure');
+        setupSlider('sliderArkaBahce1', 'arkaBahce1Value', 'arkaBahce1_sure');
+        setupSlider('sliderArkaBahce2', 'arkaBahce2Value', 'arkaBahce2_sure');
+
+        // Göstergeleri güncelleyen fonksiyon
+        function updateGauge(gaugeId, value) {
+            google.charts.load('current', {'packages':['gauge']});
+            google.charts.setOnLoadCallback(drawChart);
+
+            function drawChart() {
+                var data = google.visualization.arrayToDataTable([
+                    ['Label', 'Value'],
+                    [gaugeId.replace('gauge', '').replace('Value', ''), parseFloat(value)]
+                ]);
+
+                var options = {
+                    width: 450,
+                    height: 225,
+                    redFrom: 200, redTo: 240,
+                    yellowFrom: 100, yellowTo: 200,
+                    greenFrom: 0, greenTo: 100,
+                    minorTicks: 5,
+                    max: 240
+                };
+
+                var chart = new google.visualization.Gauge(document.getElementById(gaugeId));
+                chart.draw(data, options);
+            }
+        }
+
+        // Tüm slider değerlerini sıfırlayan ve MQTT mesajı gönderen fonksiyon
+        function resetValues() {
+            const sliders = ['sliderOnBahce1', 'sliderOnBahce2', 'sliderArkaBahce1', 'sliderArkaBahce2'];
+            const values = ['onBahce1Value', 'onBahce2Value', 'arkaBahce1Value', 'arkaBahce2Value'];
+            const topics = ['onBahce1_sure', 'onBahce2_sure', 'arkaBahce1_sure', 'arkaBahce2_sure'];
+
+            sliders.forEach((sliderId, index) => {
+                const slider = document.getElementById(sliderId);
+                const valueDisplay = document.getElementById(values[index]);
+                const topic = topics[index];
+
+                slider.value = 0;
+                valueDisplay.innerText = '0:00 sn.';
+
+                // MQTT mesajı gönder
+                client.publish(topic, '0');
+            });
+        }
+
+        // Slider değerini "dakika:saniye sn." formatına dönüştüren yardımcı fonksiyon
+        function formatSliderValue(value) {
+            const minutes = Math.floor(value / 60);
+            const seconds = value % 60;
+            return `${minutes}:${seconds < 10 ? '0' : ''}${seconds} sn.`;
+        }
+
+        // MQTT mesajlarını indiren fonksiyon
+        function downloadMessages() {
+
+
+            const topics = ['onBahce1_sure', 'onBahce2_sure', 'arkaBahce1_sure', 'arkaBahce2_sure'];
+            let textContent = '';
+
+            topics.forEach(topic => {
+                const value = localStorage.getItem(topic);
+                const currentTime = new Date().toLocaleString(); // Sistem saat bilgisi
+
+                textContent += `${topic}: ${value} (${currentTime})\n`;
+            });
+
+            const messageDisplay = document.getElementById('messageDisplay');
+            messageDisplay.value = textContent.trim(); // Trim to remove extra newline at the end
+
+            // Opsiyonel: Pencereyi açabilirsiniz
+            // alert('MQTT Mesajları başarıyla indirildi ve aşağıdaki alanda görüntüleniyor.');
+
+            // Alternatif olarak, indirme işlemi devam edebilir
+            const blob = new Blob([textContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'mqtt_messages.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        var isbaglantıButonBasildi = false;
+
+        function baglanti() {
+          //  var button = document.getElementById("baglanti-buton");
+            if (!isbaglantıButonBasildi) {
+                // Birinci basışta yapılacak işlem
+
+                document.getElementById("sliderArkaBahce1").disabled = false;
+                document.getElementById("sliderArkaBahce2").disabled = false;
+                document.getElementById("sliderOnBahce1").disabled = false;
+                document.getElementById("sliderOnBahce2").disabled = false;
+             //   button.innerHTML = "Slider aktif";
+
+            } else {
+                // İkinci basışta yapılacak işlem
+
+                document.getElementById("sliderArkaBahce1").disabled = true;
+                document.getElementById("sliderArkaBahce2").disabled = true;
+                document.getElementById("sliderOnBahce1").disabled = true;
+                document.getElementById("sliderOnBahce2").disabled = true;
+            //    button.innerHTML = "Slider pasif";
+
+            }
+
+            // Durum değiştir
+            isbaglantıButonBasildi = !isbaglantıButonBasildi;
+        }
+
+
+
+    </script>
+</body>
+</html>
+
+
